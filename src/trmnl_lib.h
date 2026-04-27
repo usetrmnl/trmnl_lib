@@ -27,10 +27,13 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <string>
+#ifndef __MACH__
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
 #include <linux/i2c-dev.h>
 #include <i2c/smbus.h>
+#endif // !__MACH__
 #include <time.h>
 
 #else // !LINUX
@@ -78,14 +81,22 @@ protected:
     void getSensorSamples();
     
   private:
+#ifndef __MACH__
     bool _bCO2, _bTimeSync = false;
     int _iSensorType;
     long _lSensorTime;
     uint32_t _u32SensorEpoch;
+#else
+    bool _bTimeSync = true;
+#endif // !__MACH__
     int _iWidth = 800; // default to OG size
     int _iHeight = 480;
     int _iHumidity, _iTemperature, _iCO2, _iPressure, _httpCode;
+#ifdef __LINUX__
+    std::string _image_url;
+#else // Arduino
     String _image_url;
+#endif
     uint8_t *_pImage;
     uint64_t _status = API_STATUS_INVALID;
     uint64_t _refresh_rate = 30; // default to 30 seconds
