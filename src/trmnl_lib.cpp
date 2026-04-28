@@ -286,12 +286,12 @@ int rc = TRMNL_ERROR;
            * Do something nice with it!
            */
           
-          printf("%lu bytes retrieved\n", (unsigned long)chunk.size);
+          //printf("%lu bytes retrieved\n", (unsigned long)chunk.size);
           //    printf("%s\n", chunk.memory);
           // Parse the JSON
           pJSON = cJSON_ParseWithLength((const char *)chunk.memory, chunk.size);
           if (pJSON) {
-              printf("JSON parsed successfully!\n");
+              //printf("JSON parsed successfully!\n");
               if (cJSON_HasObjectItem(pJSON, "status")) {
                   pItem = cJSON_GetObjectItem(pJSON, "status");
                   _status = pItem->valueint;
@@ -306,7 +306,7 @@ int rc = TRMNL_ERROR;
               }
               if (_image_url.length() > 0) {
                   rc = TRMNL_SUCCESS;
-                  printf("Image URL: %s\n", _image_url.c_str());
+                  //printf("Image URL: %s\n", _image_url.c_str());
               }
           } // if pJSON
       } // successful GET request
@@ -448,7 +448,7 @@ int TRMNL::getImage(uint8_t **pBuffer, int *pSize)
              * Do something nice with it!
              */
        
-            printf("%lu bytes of image retrieved\n", (unsigned long)chunk.size);
+            //printf("%lu bytes of image retrieved\n", (unsigned long)chunk.size);
           }
        
           /* cleanup curl stuff */
