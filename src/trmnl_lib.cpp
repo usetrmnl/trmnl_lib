@@ -453,7 +453,7 @@ int TRMNL::getImage(uint8_t **pBuffer, int *pSize)
        
           /* cleanup curl stuff */
           curl_easy_cleanup(curl);
-          *pBuffer = (uint8_t *)chunk.memory; // return the image
+          _pImage = *pBuffer = (uint8_t *)chunk.memory; // return the image data
           *pSize = chunk.size;
           rc = TRMNL_SUCCESS;
         }
