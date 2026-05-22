@@ -292,7 +292,7 @@ uint8_t ucTemp[768]; // temporary palette for grayscale
 void ShowHelp(void)
 {
     printf("sdl2_viewer - display TRMNL images in a SDL2 window\nwritten by Larry Bank (bitbank@pobox.com)\nCopyright(c) 2026 BitBank Software, inc.\n");
-    printf("Usage: ./sdl2_viewer <Device API key>\n");
+    printf("Usage: ./sdl2_viewer <Device API key> <optional back-end URL>\n");
 } /* ShowHelp() */
 //
 // Figure out the image type and decode it
@@ -338,7 +338,7 @@ uint8_t *pImage;
 TRMNL trmnl;
 time_t now, next_update;
     
-    if (argc != 2) {
+    if (argc != 2 && argc != 3) {
         ShowHelp();
         return -1;
     }
@@ -378,7 +378,11 @@ time_t now, next_update;
         SDL_Delay(100);
         time(&now);
         if (now > next_update) {
-            rc = trmnl.getAPI(argv[1]);
+            if (argc == 2) {
+                rc = trmnl.getAPI(argv[1]);
+            } else {
+	        rc = trmnl.getAPI(argv[1], argv[2]);
+	    }
             if (rc == TRMNL_SUCCESS) {
                 printf("getAPI succeeded\n");
                 next_update = now + trmnl.getSleepTime();
@@ -390,7 +394,10 @@ time_t now, next_update;
                     }
                     trmnl.freeImage();
                 }
-            }
+            } else {
+                printf("getAPI failed with error: %d, exiting...\n", trmnl.getHTTPCode());
+		bQuit = true;
+	    }
         }
     } // while SDL window displayed
     printf("exiting...\n");
