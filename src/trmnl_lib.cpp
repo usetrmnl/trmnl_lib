@@ -19,6 +19,8 @@
 #ifdef __LINUX__
 #include <curl/curl.h>
 #include "../linux/cJSON.h"
+#include <time.h>
+#define vTaskDelay(x) usleep(x * 10 * 1000)
 #else // Arduino
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -51,6 +53,17 @@ struct MemoryStruct {
   size_t size;
 };
  
+long millis(void)
+{
+long iTime;
+struct timespec res;
+
+    clock_gettime(CLOCK_MONOTONIC, &res);
+    iTime = 1000*res.tv_sec + res.tv_nsec/1000000;
+
+    return iTime;
+} /* millis() */
+
 static size_t write_cb(char *contents, size_t size, size_t nmemb, void *userp)
 {
   size_t realsize = size * nmemb;
@@ -86,12 +99,16 @@ void TRMNL::setSensorBus(uint8_t sda, uint8_t scl)
     // check if there is a SCD41 or supported temperature sensor attached
     if (bbt.init(sda, scl) == BBT_SUCCESS) {
       _iSensorType = bbt.type();
+#ifdef ARDUINO
       Serial.printf("%s [%d]: supported sensor found! (%d)\r\n", __FILE__, __LINE__, _iSensorType);
+#endif
       bbt.start(); // start the sensor
     }
     if (scd41.init(sda, scl) == SCD41_SUCCESS) {
       _bCO2 = true;
+#ifdef ARDUINO
       Serial.printf("%s [%d]: SCD41 sensor found!\r\n", __FILE__, __LINE__);
+#endif
         scd41.wakeup();
       // The SCD41 needs to be re-initialized after big Vcc variations from the last wakeup
       // put it in a 'confused' state. If we don't re-initialize it, it won't generate more samples
@@ -100,7 +117,9 @@ void TRMNL::setSensorBus(uint8_t sda, uint8_t scl)
       scd41.triggerSample(); // trigger a 'one-shot' sample that takes about 5 seconds to complete
     }
     if (!_bCO2 && _iSensorType < 0) {
+#ifdef ARDUINO
       Serial.printf("%s [%d]: No sensor found on I2C bus %d/%d\r\n", __FILE__, __LINE__, sda, scl);
+#endif
     }
     _lSensorTime = millis(); // mark the time when we triggered sensor samples
 #endif // !__MACH__
@@ -213,9 +232,13 @@ void TRMNL::getSensorSamples()
             if (u32Caps & BBT_CAP_PRESSURE) {
                 _iPressure = bbts.pressure;
             }
+#ifdef ARDUINO
           Serial.printf("%s [%d]: Got bb_temperature sample: Temp = %d.%dC\r\n", __FILE__, __LINE__, _iTemperature/10, _iTemperature % 10);
+#endif
         } else {
+#ifdef ARDUINO
           Serial.printf("%s [%d]: bb_temperature sample failed\r\n", __FILE__, __LINE__);
+#endif
         }
         bbt.stop(); // turn off the sensor to conserve power
     }

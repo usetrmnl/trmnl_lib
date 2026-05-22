@@ -32,7 +32,7 @@
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
 #include <linux/i2c-dev.h>
-#include <i2c/smbus.h>
+//#include <i2c/smbus.h>
 #endif // !__MACH__
 #include <time.h>
 
