@@ -53,7 +53,7 @@ struct MemoryStruct {
   size_t size;
 };
  
-long millis(void)
+static long millis(void)
 {
 long iTime;
 struct timespec res;
