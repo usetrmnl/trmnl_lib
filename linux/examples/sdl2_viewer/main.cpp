@@ -345,7 +345,7 @@ time_t now, next_update;
     time(&next_update); // get the current time
     trmnl.setDisplaySize(IMAGE_WIDTH, IMAGE_HEIGHT); // dynamic display size is not supported yet; for future use
     // Create the SDL window
-    win = SDL_CreateWindow("TRMNL", 100, 100, IMAGE_WIDTH, IMAGE_HEIGHT, SDL_WINDOW_SHOWN);
+    win = SDL_CreateWindow("TRMNL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, IMAGE_WIDTH, IMAGE_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_OPENGL);
     if (win == nullptr) {
         printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
         return -1;

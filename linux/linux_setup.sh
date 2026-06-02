@@ -5,7 +5,7 @@ echo "Linux supports I2C sensors, so we'll install two to start"
 # save the current directory
   pushd .
 # Install the required components
-  sudo apt install libi2c-dev -y
+  sudo apt install libi2c-dev libcurl4-openssl-dev -y
 
 # clone and build the bb_scd41 and bb_temperature libraries
   mkdir -p $HOME/Projects
