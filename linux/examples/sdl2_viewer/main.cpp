@@ -19,10 +19,13 @@
 #include <PNGdec.h>
 #include <JPEGDEC.h>
 #include <trmnl_lib.h>
+#include <termios.h>
 #include <stdio.h>
+#include <signal.h>
 #include <stdexcept>
 #include <stdlib.h>
 #include <SDL2/SDL.h>
+volatile bool bQuit = false;
 SDL_Window *win;
 SDL_Surface *canvas, *winSurface;
 
@@ -328,6 +331,25 @@ int decodeImage(uint8_t *pData, int iSize) {
     }
     return 1;
 } /* decodeImage() */
+void setRawMode(bool enable) {
+    static struct termios oldt, newt;
+    if (enable) {
+        tcgetattr(STDIN_FILENO, &oldt);
+        newt = oldt;
+        newt.c_lflag &= ~(ICANON | ECHO); // Disable buffering and echoing
+        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    } else {
+        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    }
+}
+//
+// Catch CTRL-C here
+//
+void signal_handler(int signum)
+{
+        printf("Ctrl-C hit; exiting...\n");
+	bQuit = true;
+} /* signal_handler() */
 
 //
 // Main program entry point
@@ -337,10 +359,17 @@ int rc, iSize;
 uint8_t *pImage;
 TRMNL trmnl;
 time_t now, next_update;
-    
+bool bSSH = false; // flag indicating if we're running from an SSH session
+
     if (argc != 2 && argc != 3) {
         ShowHelp();
         return -1;
+    }
+    bSSH = (getenv("SSH_CLIENT") != nullptr);
+    printf("Running from SSH = %s\n", (bSSH) ? "Yes" : "No");
+    signal(SIGINT, signal_handler); // catch CTRL-C
+    if (bSSH) {
+        setRawMode(true);
     }
     time(&next_update); // get the current time
     trmnl.setDisplaySize(IMAGE_WIDTH, IMAGE_HEIGHT); // dynamic display size is not supported yet; for future use
@@ -358,11 +387,26 @@ time_t now, next_update;
         SDL_Quit();
         return -1;
     }
-    bool bQuit = false;
     printf("Created SDL window, about to enter event loop\n");
     while (!bQuit) {
+	if (bSSH) { // special way to capture keys from SSH
+            fd_set set;
+            struct timeval timeout = {0, 1000}; // 1ms timeout to keep SDL responsive
+            FD_ZERO(&set);
+            FD_SET(STDIN_FILENO, &set);
+            if (select(STDIN_FILENO + 1, &set, NULL, NULL, &timeout) > 0) {
+                if (FD_ISSET(STDIN_FILENO, &set)) {
+                    char c = getchar();
+                    if (c == '\n' || c == '\r') { // Detect Enter key
+                        printf("Enter key pressed, skipping to next in playlist...\n");
+		        next_update = now;
+                    } else if (c == 0x1b) { // ESC key
+                        bQuit = true;
+		    }
+                }
+            }
+	} // running from SSH session
         SDL_Event e;
-
         while (SDL_PollEvent(&e)) { // take care of queued events
             if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) {
                 bQuit = true;
@@ -402,6 +446,9 @@ time_t now, next_update;
     } // while SDL window displayed
     printf("exiting...\n");
     // Clean up
+    if (bSSH) {
+        setRawMode(false);
+    }
     SDL_FreeSurface(canvas);
     SDL_FreeSurface(winSurface);
     SDL_DestroyWindow(win);
