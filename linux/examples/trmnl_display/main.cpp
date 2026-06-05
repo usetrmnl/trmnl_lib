@@ -16,7 +16,8 @@
 // limitations under the License.
 //===========================================================================
 //
-#define SHOW_DETAILS
+// Enable SHOW_DETAILS for debugging only
+//#define SHOW_DETAILS
 #include <bb_epaper.h>
 #include <PNGdec.h>
 #include <JPEGDEC.h>
@@ -352,6 +353,19 @@ void ShowEPDImage(void)
             CreateSpectra6Pal(iSpectraRGB, u8SpectraPal);
             iBpp = ConvertBpp(s, iWidth, iHeight, iBpp, pPalette);
         }
+        if (!(bbep.capabilities() & (BBEP_7COLOR | BBEP_4COLOR | BBEP_3COLOR))) {
+            if (iBpp == 1) {
+#ifdef SHOW_DETAILS
+                printf("Selecting 1-bpp panel type\n");
+#endif
+                bbep.setPanelType(iPanel1Bit);
+            } else {
+#ifdef SHOW_DETAILS
+                printf("Selecting 2-bpp panel type\n");
+#endif
+                bbep.setPanelType(iPanel2Bit);
+            }
+        }
 	if (iBpp == 1 && !(bbep.capabilities() & BBEP_7COLOR)) {
 	    iSrcPitch = (iWidth+7)/8;
 	    for (y=0; y<iHeight; y++) {
@@ -403,19 +417,16 @@ void ShowEPDImage(void)
             iMode = REFRESH_FULL;
         }
         if (iBpp == 1 && !(bbep.capabilities() & (BBEP_3COLOR | BBEP_4COLOR | BBEP_7COLOR | BBEP_4GRAY))) {
-            bbep.writePlane((iMode == REFRESH_PARTIAL) ? PLANE_FALSE_DIFF : PLANE_0, iInvert);
+            bbep.writePlane((iMode == REFRESH_PARTIAL) ? PLANE_FALSE_DIFF : PLANE_DUPLICATE, iInvert);
             bbep.refresh(iMode);
         } else { // 3-color, 4-color, or 4 gray mode
             bbep.writePlane(PLANE_BOTH, iInvert);
             bbep.refresh(iMode); // some 4-color panels support fast update
         }
 #ifdef SHOW_DETAILS
-        printf("Refresh complete, shutting down...\n");
+        printf("Refresh complete, sleeping panel.\n");
 #endif
         bbep.sleep(LIGHT_SLEEP); // turn off the epaper power circuit
-        if (adapters[iAdapter].u8PWR != 0xff) {
-            digitalWrite(adapters[iAdapter].u8PWR, 0); // disable power to EPD
-        }
 } /* ShowEPDImage() */
 //
 // Draw the current image onto a SDL window
@@ -567,7 +578,9 @@ int decodeImage(uint8_t *pData, int iSize) {
             }
             return 0;
         } else {
+#ifdef SHOW_DETAILS
             printf("PNG decode succeeded\n");
+#endif
         }
     }
     return 1;
@@ -637,11 +650,15 @@ time_t now, next_update;
         if (now > next_update) {
             rc = trmnl.getAPI(szKey, szURL);
             if (rc == TRMNL_SUCCESS) {
+#ifdef SHOW_DETAILS
                 printf("getAPI succeeded\n");
+#endif
                 next_update = now + trmnl.getSleepTime();
                 rc = trmnl.getImage(&pImage, &iSize);
                 if (rc == TRMNL_SUCCESS) {
+#ifdef SHOW_DETAILS
                     printf("getImage succeeded, size = %d bytes\n", iSize);
+#endif
                     if (decodeImage(pImage, iSize)) {
                         ShowSDLImage();
                     }
@@ -922,7 +939,7 @@ int rc, iSize;
             // command sequence is sent to properly prepare the EPD for receiving data
             bbep.setPanelType((iPanel1Bit == -1) ? iPanel2Bit : iPanel1Bit);
             bbep.initIO(adapters[iAdapter].u8DC, adapters[iAdapter].u8RST, adapters[iAdapter].u8BUSY, adapters[iAdapter].u8CS, adapters[iAdapter].u8SPI, 0, 8000000);
-            bbep.allocBuffer();
+            bbep.allocBuffer(true); // always allocate 2 memory planes
             if (bbep.width() < bbep.height()) {
                     bbep.setRotation(270);
             }
@@ -947,11 +964,15 @@ int rc, iSize;
         if (now > next_update) {
             rc = trmnl.getAPI(szKey, szURL);
             if (rc == TRMNL_SUCCESS) {
+#ifdef SHOW_DETAILS
                 printf("getAPI succeeded\n");
+#endif
                 next_update = now + trmnl.getSleepTime();
                 rc = trmnl.getImage(&pImage, &iSize);
                 if (rc == TRMNL_SUCCESS) {
+#ifdef SHOW_DETAILS
                     printf("getImage succeed, size = %d bytes\n", iSize);
+#endif
                     if (decodeImage(pImage, iSize)) {
                         ShowEPDImage();
                     }
@@ -964,6 +985,9 @@ int rc, iSize;
         }
         usleep(100000); // don't use 100% of the CPU
     } // while (!bQuit)
+    if (adapters[iAdapter].u8PWR != 0xff) {
+        digitalWrite(adapters[iAdapter].u8PWR, 0); // disable power to EPD
+    }
 } /* TRMNL_EPAPER() */
 //
 // Parse the command line arguments to substitute or override the JSON settings
@@ -1160,11 +1184,14 @@ void setRawMode(bool enable) {
 //
 int main(int argc, const char * argv[]) {
 
+    printf("TRMNL Display\nPress ENTER to skip, ESC to exit\n");
     iAdapter = iPanel1Bit = iPanel2Bit = -1;
     iMode = REFRESH_FULL; // default to full refresh
     signal(SIGINT, signal_handler); // catch Ctrl-C
     bSSH = (getenv("SSH_CLIENT") != nullptr);
+#ifdef SHOW_DETAILS
     printf("Running from SSH = %s\n", (bSSH) ? "Yes" : "No");
+#endif
     ParseJSON();
     ParseArgs(argc, argv);
     if (!szKey[0]) {
@@ -1179,7 +1206,7 @@ int main(int argc, const char * argv[]) {
         return -1;
     }
     if (iStretch < 0) iStretch = STRETCH_ASPECTFILL; // default
-
+    iMode = 0; // DEBUG - safer to use full refresh all the time
     if (bSSH) {
         setRawMode(true);
     }
