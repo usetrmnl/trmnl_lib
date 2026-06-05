@@ -191,11 +191,11 @@ uint16_t rgb333;
 //
 void ShowHelp(void)
 {
-    printf("show_img utility - display PNG (and BMP) images on ePaper displays\nwritten by Larry Bank (bitbank@pobox.com)\nCopyright(c) 2025 BitBank Software, inc.\n");
+    printf("trmnl_display utility - run TRMNL on your RPI monitor or ePaper display\nwritten by Larry Bank (bitbank@pobox.com)\nCopyright(c) 2025-2026 TRMNL LLC\n");
     printf("A JSON file (~/.config/trmnl/show_img.json) can contain the setup\nor the parameters can be passed on the command line (in any order):\n");
-    printf("file=<filename> any PNG or BMP file\nmode=<update mode> can be full, fast or partial\nadapter=<epaper PCB> can be waveshare_2 or pimoroni\npanel_1bit=<bb_epaper panel name>\npanel_2bit=<bb_epaper panel name>\n");
+    printf("mode=<update mode> can be full, fast or partial\nadapter=<epaper PCB> can be waveshare_2 or pimoroni\npanel_1bit=<bb_epaper panel name>\npanel_2bit=<bb_epaper panel name>\n");
     printf("Color images and bit depths greater than 2-bpp will be\nautomatically converted to 2-bit (4 grays).\n");
-    printf("example: ./show_img file=\"/home/me/test.png\" mode=fast panel_1bit=EP75_800x480 adapter=waveshare_2\n");
+    printf("example: ./trmnl_display mode=fast panel_1bit=EP75_800x480 adapter=waveshare_2\n");
 } /* ShowHelp() */
 
 // Set this to the size of images you will receive
@@ -641,7 +641,7 @@ time_t now, next_update;
                 next_update = now + trmnl.getSleepTime();
                 rc = trmnl.getImage(&pImage, &iSize);
                 if (rc == TRMNL_SUCCESS) {
-                    printf("getImage succeed, size = %d bytes\n", iSize);
+                    printf("getImage succeeded, size = %d bytes\n", iSize);
                     if (decodeImage(pImage, iSize)) {
                         ShowSDLImage();
                     }
@@ -922,6 +922,7 @@ int rc, iSize;
             // command sequence is sent to properly prepare the EPD for receiving data
             bbep.setPanelType((iPanel1Bit == -1) ? iPanel2Bit : iPanel1Bit);
             bbep.initIO(adapters[iAdapter].u8DC, adapters[iAdapter].u8RST, adapters[iAdapter].u8BUSY, adapters[iAdapter].u8CS, adapters[iAdapter].u8SPI, 0, 8000000);
+            bbep.allocBuffer();
             if (bbep.width() < bbep.height()) {
                     bbep.setRotation(270);
             }
@@ -1159,13 +1160,11 @@ void setRawMode(bool enable) {
 //
 int main(int argc, const char * argv[]) {
 
-    iAdapter = iPanel1Bit = iPanel2Bit = iMode = -1;
+    iAdapter = iPanel1Bit = iPanel2Bit = -1;
+    iMode = REFRESH_FULL; // default to full refresh
     signal(SIGINT, signal_handler); // catch Ctrl-C
     bSSH = (getenv("SSH_CLIENT") != nullptr);
     printf("Running from SSH = %s\n", (bSSH) ? "Yes" : "No");
-    if (bSSH) {
-        setRawMode(true);
-    }
     ParseJSON();
     ParseArgs(argc, argv);
     if (!szKey[0]) {
@@ -1175,12 +1174,15 @@ int main(int argc, const char * argv[]) {
     if (iAdapter == ADAPTER_FRAMEBUFFER) { // for framebuffer, some parameters don't matter
         iMode = iPanel1Bit = iPanel2Bit = 0;
     }
-    if (iAdapter == -1 || iMode == -1 || (iPanel1Bit == -1 && iPanel2Bit == -1)) { // print instructions
+    if (iAdapter == -1 || (iPanel1Bit == -1 && iPanel2Bit == -1)) { // print instructions
         ShowHelp();
         return -1;
     }
     if (iStretch < 0) iStretch = STRETCH_ASPECTFILL; // default
 
+    if (bSSH) {
+        setRawMode(true);
+    }
     if (iAdapter == ADAPTER_FRAMEBUFFER) { // framebuffer
     	TRMNL_SDL();
     } else {

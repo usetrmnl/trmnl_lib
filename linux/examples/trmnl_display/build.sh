@@ -50,8 +50,7 @@ set -e
   JSTART=$(printf "{\n        \"adapter\": \"")
   PANEL2="EP75_800x480_4GRAY_GEN2"
   case $n in
-          1) echo 0 | sudo tee /sys/class/graphics/fbcon/cursor_blink
-             PANEL="EP75_800x480_GEN2"
+          1) PANEL="EP75_800x480_GEN2"
              JADAPTER="framebuffer";;
           2) JADAPTER="waveshare_2"
              PANEL="EP75_800x480_GEN2";;
@@ -62,11 +61,10 @@ set -e
   esac
   JEND=$(printf "\",\n        \"stretch\": \"aspectfill\",\n        \"panel_1bit\": \"$PANEL\",\n        \"panel_2bit\": \"$PANEL2\"\n}\n")
   printf '%s%s%s' "$JSTART" "$JADAPTER" "$JEND" > $HOME/.config/trmnl/show_img.json
+  echo "  Enter your API (device) key"
+  read key
+  JKEY=$(printf "{\n        \"api_key\": \"")
+  JURL=$(printf "\",\n        \"base_url\": \"https://trmnl.app\"\n}\n")
+  printf '%s%s%s' "$JKEY" "$key" "$JURL" > $HOME/.config/trmnl/config.json
 
-  echo "Compiling TRMNL go program..."
-  go build -o trmnl-display ./trmnl-display.go
-
-  echo "Build complete. Run trmnl-display to start."
-  
-  echo "Build complete. Run sdl2_viewer <API key> <optional backend URL> to start."
-
+  echo "Build complete. Run trmnl_display to start."
