@@ -18,7 +18,9 @@
 //
 // Enable SHOW_DETAILS for debugging only
 //#define SHOW_DETAILS
+#ifndef __MACH__
 #include <bb_epaper.h>
+#endif // __MACH__
 #include <PNGdec.h>
 #include <JPEGDEC.h>
 #include "cJSON.h"
@@ -34,7 +36,9 @@
 #include <SDL2/SDL.h>
 SDL_Window *win;
 SDL_Surface *canvas, *winSurface;
+#ifndef __MACH__
 BBEPAPER bbep;
+#endif // __MACH__
 volatile bool bQuit = false;
 bool bSSH = false; // flag indicating if we're running from an SSH session
 char szKey[64], szURL[128];
@@ -121,6 +125,7 @@ int i = 0;
     }
     return i;
 } /* FindItemName() */
+#ifndef __MACH__
 //
 // bb_epaper colors to map to Spectra6 colors
 // The RGB values are not correct for the panel, but for simple mapping
@@ -142,6 +147,7 @@ const int iSpectraRGB[] = { // r, g, b
     0,0,192, // blue = 4
     0,192,0, // green = 5
 };
+#endif //!__MACH__
 // Map the Spectra6 palette to the closest RGB333 values
 void CreateSpectra6Pal(const int *pSrc, uint8_t *pDest)
 {
@@ -338,6 +344,7 @@ int rc;
     rc = png.decode(NULL, 0);
     return rc;
 } /* DecodePNG() */
+#ifndef __MACH__
 //
 // Draw the current image onto the epaper display
 //
@@ -428,6 +435,7 @@ void ShowEPDImage(void)
 #endif
         bbep.sleep(LIGHT_SLEEP); // turn off the epaper power circuit
 } /* ShowEPDImage() */
+#endif // __MACH__
 //
 // Draw the current image onto a SDL window
 //
@@ -598,7 +606,12 @@ time_t now, next_update;
     time(&next_update); // get the current time
     trmnl.setDisplaySize(IMAGE_WIDTH, IMAGE_HEIGHT); // dynamic display size is not supported yet; for future use
     // Create the SDL window
+#ifdef __MACH__
+// create a windowed version for MacOS
+    win = SDL_CreateWindow("TRMNL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, IMAGE_WIDTH, IMAGE_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
+#else
     win = SDL_CreateWindow("TRMNL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, IMAGE_WIDTH, IMAGE_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_OPENGL);
+#endif
     if (win == nullptr) {
         printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
         return;
@@ -612,7 +625,9 @@ time_t now, next_update;
         return;
     }
     bool bQuit = false;
+#ifdef SHOW_DETAILS
     printf("Created SDL window, about to enter event loop\n");
+#endif
     while (!bQuit) {
         SDL_Event e;
         if (bSSH) { // capture keys from the SSH session (STDIN)
@@ -642,6 +657,7 @@ time_t now, next_update;
             }
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_RETURN) {
                 // skip to next image before time expires
+                printf("Enter key pressed, skipping to next in playlist...\n");
                 next_update = now;
             }
         } // while SDL events
@@ -677,6 +693,7 @@ time_t now, next_update;
     SDL_DestroyWindow(win);
     SDL_Quit();
 } /* TRMNL_SDL() */
+#ifndef __MACH__
 //
 // Match the given pixel to black (00), white (01), or red (1x)
 //
@@ -989,6 +1006,7 @@ int rc, iSize;
         digitalWrite(adapters[iAdapter].u8PWR, 0); // disable power to EPD
     }
 } /* TRMNL_EPAPER() */
+#endif // __MACH__
 //
 // Parse the command line arguments to substitute or override the JSON settings
 //
@@ -1186,13 +1204,18 @@ int main(int argc, const char * argv[]) {
 
     printf("TRMNL Display\nPress ENTER to skip, ESC to exit\n");
     iAdapter = iPanel1Bit = iPanel2Bit = -1;
+#ifndef __MACH__
     iMode = REFRESH_FULL; // default to full refresh
+#endif
     signal(SIGINT, signal_handler); // catch Ctrl-C
     bSSH = (getenv("SSH_CLIENT") != nullptr);
 #ifdef SHOW_DETAILS
     printf("Running from SSH = %s\n", (bSSH) ? "Yes" : "No");
 #endif
     ParseJSON();
+#ifdef __MACH__
+    iAdapter = ADAPTER_FRAMEBUFFER;
+#endif
     ParseArgs(argc, argv);
     if (!szKey[0]) {
         printf("API key not found, exiting...\n");
@@ -1213,7 +1236,11 @@ int main(int argc, const char * argv[]) {
     if (iAdapter == ADAPTER_FRAMEBUFFER) { // framebuffer
     	TRMNL_SDL();
     } else {
+#ifdef __MACH__
+        printf("trmnl_display cannot control SPI ePaper display on MacOS!\n");
+#else
         TRMNL_EPAPER();
+#endif
     }
     if (bSSH) {
         setRawMode(false);
