@@ -554,8 +554,12 @@ uint8_t ucTemp[768]; // temporary palette for grayscale
         } // for y
     free(pBitmap); // no longer needed
     winSurface = SDL_GetWindowSurface(win);
-    SDL_BlitSurface(canvas, NULL, winSurface, NULL);
-    SDL_UpdateWindowSurface(win);
+    if (winSurface) {
+        SDL_BlitSurface(canvas, NULL, winSurface, NULL);
+        SDL_UpdateWindowSurface(win);
+    } else {
+        printf("Error acquiring SDL Window Surface; is the monitor connected?\n");
+    }
 } /* ShowSDLImage() */
 //
 // Figure out the image type and decode it
@@ -614,12 +618,20 @@ time_t now, next_update;
 #endif
     if (win == nullptr) {
         printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
+        SDL_Quit();
         return;
     }
     // Create a surface to hold the image canvas
     canvas = SDL_CreateRGBSurfaceWithFormat(0, IMAGE_WIDTH, IMAGE_HEIGHT, 16, SDL_PIXELFORMAT_RGB565);
     if (canvas == nullptr) {
         printf("SDL_CreateSurface error %s\n", SDL_GetError());
+        SDL_DestroyWindow(win);
+        SDL_Quit();
+        return;
+    }
+    if (canvas->pixels == nullptr) {
+        printf("Error acquiring canvas framebuffer; is there a monitor attached?\n");
+        SDL_FreeSurface(canvas);
         SDL_DestroyWindow(win);
         SDL_Quit();
         return;

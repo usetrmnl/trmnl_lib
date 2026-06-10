@@ -5,6 +5,11 @@ set -e
 
 # Install the required components
   sudo apt install git gpiod libgpiod-dev libsdl2-dev -y
+  echo "Building the trmnl library."
+  cd ../../
+  make
+  cd examples/trmnl_display
+
 # save the current directory
   pushd .
   mkdir -p $HOME/Projects
