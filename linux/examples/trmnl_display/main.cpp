@@ -469,6 +469,15 @@ uint8_t ucTemp[768]; // temporary palette for grayscale
     } else if (iPixelType == PNG_PIXEL_TRUECOLOR_ALPHA) {
 	    iBpp = 32;
     }
+    // Create a surface to hold the image canvas
+    canvas = SDL_CreateRGBSurfaceWithFormat(0, iWidth, iHeight, 16, SDL_PIXELFORMAT_RGB565);
+    if (canvas == nullptr) {
+        printf("SDL_CreateSurface error %s\n", SDL_GetError());
+        SDL_DestroyWindow(win);
+        SDL_Quit();
+        return;
+    }
+
     iSrcPitch = (iWidth * iBpp)/8;
     for (y=0; y<iHeight; y++) {
         s = pBitmap + (y*iSrcPitch);
@@ -553,10 +562,22 @@ uint8_t ucTemp[768]; // temporary palette for grayscale
             } // switch on bpp
         } // for y
     free(pBitmap); // no longer needed
-    winSurface = SDL_GetWindowSurface(win);
-    if (winSurface) {
-        SDL_BlitSurface(canvas, NULL, winSurface, NULL);
-        SDL_UpdateWindowSurface(win);
+  //  winSurface = SDL_GetWindowSurface(win);
+    if (1) {//winSurface) {
+        int w, h;
+        SDL_GetWindowSize(win, &w, &h);
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear"); // linear interpolate
+        SDL_Renderer *renderer = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
+        SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, canvas);
+        SDL_Rect dstrect;
+        dstrect.x = dstrect.y = 0;
+        dstrect.w = w; dstrect.h = h;
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, texture, NULL, &dstrect);
+        SDL_RenderPresent(renderer);
+        SDL_FreeSurface(canvas);
+        SDL_DestroyTexture(texture);
+        SDL_DestroyRenderer(renderer);
     } else {
         printf("Error acquiring SDL Window Surface; is the monitor connected?\n");
     }
@@ -618,21 +639,6 @@ time_t now, next_update;
 #endif
     if (win == nullptr) {
         printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
-        SDL_Quit();
-        return;
-    }
-    // Create a surface to hold the image canvas
-    canvas = SDL_CreateRGBSurfaceWithFormat(0, IMAGE_WIDTH, IMAGE_HEIGHT, 16, SDL_PIXELFORMAT_RGB565);
-    if (canvas == nullptr) {
-        printf("SDL_CreateSurface error %s\n", SDL_GetError());
-        SDL_DestroyWindow(win);
-        SDL_Quit();
-        return;
-    }
-    if (canvas->pixels == nullptr) {
-        printf("Error acquiring canvas framebuffer; is there a monitor attached?\n");
-        SDL_FreeSurface(canvas);
-        SDL_DestroyWindow(win);
         SDL_Quit();
         return;
     }
@@ -700,8 +706,6 @@ time_t now, next_update;
     } // while SDL window displayed
     printf("exiting...\n");
     // Clean up
-    SDL_FreeSurface(canvas);
-    SDL_FreeSurface(winSurface);
     SDL_DestroyWindow(win);
     SDL_Quit();
 } /* TRMNL_SDL() */
