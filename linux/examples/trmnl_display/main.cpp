@@ -43,6 +43,7 @@ volatile bool bQuit = false;
 bool bSSH = false; // flag indicating if we're running from an SSH session
 char szKey[64], szURL[128];
 int iAdapter, iMode;
+int iOrientation = 0; // default to non-rotated
 int iPanel1Bit, iPanel2Bit;
 int iInvert = 0; // assume not inverted
 int iBGR = 0; // reversed R/B order
@@ -570,10 +571,18 @@ uint8_t ucTemp[768]; // temporary palette for grayscale
         SDL_Renderer *renderer = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
         SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, canvas);
         SDL_Rect dstrect;
+	SDL_RenderClear(renderer);
         dstrect.x = dstrect.y = 0;
-        dstrect.w = w; dstrect.h = h;
-        SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, texture, NULL, &dstrect);
+	if (iOrientation == 0 || iOrientation == 180) {
+            dstrect.w = w; dstrect.h = h;
+	} else {
+	    float f = (float)h / (float)w;
+            dstrect.w = (int)(f * w);
+	    dstrect.h = (int)(f * h);
+	    dstrect.x = (w-dstrect.w)/2;
+	    dstrect.y = (h-dstrect.h)/2;
+	}
+        SDL_RenderCopyEx(renderer, texture, NULL, &dstrect, iOrientation, NULL, SDL_FLIP_NONE);
         SDL_RenderPresent(renderer);
         SDL_FreeSurface(canvas);
         SDL_DestroyTexture(texture);
@@ -1128,6 +1137,17 @@ char szFile[256];
 #ifdef SHOW_DETAILS
                     printf("show_img.json parsed successfully!\n");
 #endif
+		    if (cJSON_HasObjectItem(pJSON, "orientation")) {
+			 int i;
+			 pItem = cJSON_GetObjectItem(pJSON, "orientation");
+			 i = pItem->valueint;
+			 if (i == 90 || i == 180 || i == 270) {
+                             iOrientation = i;
+#ifdef SHOW_DETAILS
+			     printf("orientation = %d\n", iOrientation);
+#endif
+			 }
+		    }
                     if (cJSON_HasObjectItem(pJSON, "stretch")) {
                          pItem = cJSON_GetObjectItem(pJSON, "stretch");
                          iStretch = FindItemName(szStretch, pItem->valuestring, "stretch");
