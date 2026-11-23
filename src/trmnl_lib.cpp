@@ -326,6 +326,9 @@ int rc = TRMNL_ERROR;
               if (cJSON_HasObjectItem(pJSON, "image_url")) {
                   pItem = cJSON_GetObjectItem(pJSON, "image_url");
                   _image_url = std::string(pItem->valuestring);
+                  if (!cJSON_HasObjectItem(pJSON, "status") && _image_url.length() > 0) {
+                      _status = API_STATUS_OK; // BYOS servers such as Terminus send no status
+                  }
               }
               if (_image_url.length() > 0) {
                   rc = TRMNL_SUCCESS;
